@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xmlns:aop="http://www.springframework.org/schema/aop"
+    xmlns:tx="http://www.springframework.org/schema/tx" 
+    xmlns:context="http://www.springframework.org/schema/context"
+    xsi:schemaLocation="
+        http://www.springframework.org/schema/beans 
+        https://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/tx 
+        https://www.springframework.org/schema/tx/spring-tx.xsd 
+        http://www.springframework.org/schema/aop 
+        https://www.springframework.org/schema/aop/spring-aop.xsd
+        http://www.springframework.org/schema/context 
+        https://www.springframework.org/schema/context/spring-context.xsd">
+        
+    <!-- 使用 aspectj 的 aop配置管理事务  -->
+    <!-- ===============================数据源的注册================================== -->
+    <context:property-placeholder location="classpath:jdbc.properties"/>
+ 	
+    <!-- 注册数据源  C3P0数据源-->
+    <bean name="dataSource" 
+    	class="com.mchange.v2.c3p0.ComboPooledDataSource">
+    	<property name="driverClass" value="${jdbc.driver}"/>
+    	<property name="jdbcUrl" value="${jdbc.url}"/>
+    	<property name="user" value="${jdbc.user}"/>
+    	<property name="password" value="${jdbc.password}"/>
+    </bean>
+    
+ 	<!-- ============================普通bean的注册================================ -->
+   	<!-- 注册dao -->
+    <bean name="accountDao" class="com.wmz.dao.AccountDaoImpl">
+    	<property name="dataSource" ref="dataSource"/>
+    </bean>
+    <bean name="stockDao" class="com.wmz.dao.StockDaoImpl">
+    	<property name="dataSource" ref="dataSource"/>
+    </bean>
+    
+   	<!-- 注册service -->
+    <bean name="buyStockService" class="com.wmz.service.BuyStockServiceImpl">
+    	<property name="adao" ref="accountDao"/>
+    	<property name="sdao" ref="stockDao"/>
+    </bean>
+    
+    <!-- ===========================事务操作=============================== -->
+    <!-- 注册事务管理器 -->
+    <bean name="transactionManager" 
+    	class="org.springframework.jdbc.datasource.DataSourceTransactionManager">
+    	<property name="dataSource" ref="dataSource"/>
+    </bean>
+    <!-- 注册事务通知  -->
+    <tx:advice id="txAdvice" transaction-manager="transactionManager">
+    	<tx:attributes>
+    		<!-- 对连接点方法上要使用的事务属性进行配置 -->
+    		<!-- 这里指定得是为每个连接点所要应用的事务属性，执行前提是指定了切入点 -->
+    		<tx:method name="open*" isolation="DEFAULT" propagation="REQUIRED"/>
+    		<tx:method name="buyStock" isolation="DEFAULT" propagation="REQUIRED" 
+    			rollback-for="BuyStockException"/>
+    	</tx:attributes>
+    </tx:advice>  
+    <!-- aop配置  -->
+    <aop:config>
+    	<!-- 指定切入点 -->
+    	<!-- 这里指定的是切入点 -->
+    	<aop:pointcut id="myPointcut" expression="execution(* *..service.*.*(..))" />
+    	<aop:advisor advice-ref="txAdvice" pointcut-ref="myPointcut"/>
+    </aop:config>
+      	
+</beans>
